@@ -1,0 +1,73 @@
+# Скопируйте в config.yaml и поправьте под себя.
+
+docs_dir: ./docs          # папка с базой знаний: .md .markdown .txt .rst .pdf (PDF через pdftotext)
+db_path: ./localrag.db    # индекс (SQLite)
+chunk_chars: 1200         # максимальный размер фрагмента в символах
+
+embedding:
+  # Любой OpenAI-совместимый /embeddings: Ollama (http://localhost:11434/v1),
+  # llama-server (http://localhost:8081/v1), vLLM.
+  base_url: http://localhost:11434/v1
+  model: embeddinggemma             # имя модели из `ollama list` (EmbeddingGemma v1 в Ollama = embeddinggemma)
+  # api_key: ""                     # нужен только для облака, см. answer ниже
+  # Префиксы из карточки EmbeddingGemma 2. {title} = title из front matter,
+  # а если его нет — имя файла без расширения.
+  query_prefix: "task: search result | query: "
+  doc_prefix: "title: {title} | text: "
+  dims: 256                         # обрезка вектора (Matryoshka): 768/512/256/128, 0 = как отдаёт модель
+  batch_size: 1                     # Ollama портит векторы при пакетной отправке EmbeddingGemma; при >1 localrag проверит пакет сам
+  timeout_sec: 120
+
+  # Для BGE-M3 вместо Gemma:
+  # model: bge-m3
+  # query_prefix: ""
+  # doc_prefix: ""
+  # dims: 0
+
+search:
+  top_k: 5
+  # Если лучший фрагмент похож на вопрос меньше, чем на min_score, ответа в базе нет
+  # и отдаётся fallback_message. Подберите командой `localrag calibrate`.
+  min_score: 0.5
+  # Фрагменты, которые хуже лучшего больше чем на max_gap, не идут ни в ответ,
+  # ни в список источников. 0 — выключить.
+  max_gap: 0.05
+
+answer:
+  mode: llm                 # llm — ответ формулирует модель; fragments — выдать найденные фрагменты как есть
+  base_url: http://localhost:11434/v1
+  model: gemma4             # любая чат-модель в Ollama
+  # api_key: ""             # для локальной Ollama не нужен
+  temperature: 0.1
+  timeout_sec: 300
+  # system_prompt: |        # свой промпт; модель должна ответить NO_ANSWER, если в фрагментах ответа нет
+
+  # Облако ollama.com вместо локальной Ollama. Ключ: https://ollama.com/settings/keys,
+  # храните его в переменной окружения, а не в файле: export OLLAMA_API_KEY=...
+  # Внимание: в облако уходят вопрос и тексты найденных статей.
+  # base_url: https://ollama.com/v1
+  # model: gemma4:31b       # имя облачной модели из каталога ollama.com
+  # api_key: ${OLLAMA_API_KEY}
+  # Эмбеддинги можно оставить локальными (так статьи при индексации не уходят наружу).
+  # Если перенести и их, тот же base_url и api_key в embedding, а после смены модели
+  # выполнить `localrag index` заново.
+
+# Ответ, когда в базе ничего не нашлось (вопрос на польском).
+fallback_message: |
+  Nie znaleźliśmy odpowiedzi na to pytanie w bazie wiedzy.
+  Napisz do nas na support@example.com lub zadzwoń pod numer +48 000 000 000.
+
+language:
+  expected: pl              # pl — отвечать только на польские вопросы; "" — на любом языке
+  # Ответ на вопрос не на польском (поиск не выполняется).
+  other_message: |
+    No information is available.
+    Please write to support@example.com or call +48 000 000 000.
+
+# Вопросы, на которые пришла заготовка, дописываются сюда (JSONL), по ним видно, каких статей
+# не хватает. Файл можно сразу передать в `localrag calibrate`. Пусто — не писать.
+# В файле тексты вопросов пользователей: храните его как персональные данные.
+unanswered_log: ./unanswered.jsonl
+
+server:
+  addr: 127.0.0.1:8080
