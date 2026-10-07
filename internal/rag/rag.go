@@ -9,11 +9,13 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rooty/local-emb-rag/internal/config"
 	"github.com/rooty/local-emb-rag/internal/ingest"
 	"github.com/rooty/local-emb-rag/internal/lang"
 	"github.com/rooty/local-emb-rag/internal/llm"
+	"github.com/rooty/local-emb-rag/internal/qlog"
 	"github.com/rooty/local-emb-rag/internal/store"
 )
 
@@ -225,13 +227,20 @@ type Engine struct {
 	emb  Embedder
 	chat Chatter // nil in fragments mode
 
+	// unanswered records questions that got a fallback; nil disables it.
+	unanswered *qlog.Log
+
 	mu     sync.RWMutex
 	chunks []store.Chunk
 	docs   map[string]store.Doc
 }
 
 func NewEngine(cfg config.Config, emb Embedder, chat Chatter) *Engine {
-	return &Engine{cfg: cfg, emb: emb, chat: chat}
+	e := &Engine{cfg: cfg, emb: emb, chat: chat}
+	if cfg.UnansweredLog != "" {
+		e.unanswered = &qlog.Log{Path: cfg.UnansweredLog}
+	}
+	return e
 }
 
 // Load (re)reads all chunks and documents from the store.
@@ -281,6 +290,8 @@ type Result struct {
 	// Reason explains a fallback: "language", "below_threshold" or "llm_no_answer".
 	// "language" comes from the word-based check or from the chat model (NOT_POLISH).
 	Reason string `json:"reason,omitempty"`
+
+	topPath string // best document, for the unanswered log
 }
 
 // Retrieve returns the best documents for the question, without thresholding.
@@ -331,6 +342,19 @@ func (e *Engine) rankDocs(hits []store.Hit) []DocHit {
 
 func (e *Engine) Ask(ctx context.Context, question string) (Result, error) {
 	question = strings.TrimSpace(question)
+	res, err := e.ask(ctx, question)
+	if err == nil && !res.Answered && e.unanswered != nil {
+		werr := e.unanswered.Write(qlog.Entry{
+			Time: time.Now().UTC(), Q: question, Reason: res.Reason, TopScore: res.TopScore, TopPath: res.topPath,
+		})
+		if werr != nil {
+			log.Printf("unanswered log: %v", werr)
+		}
+	}
+	return res, err
+}
+
+func (e *Engine) ask(ctx context.Context, question string) (Result, error) {
 	if question == "" {
 		return Result{}, fmt.Errorf("empty question")
 	}
@@ -343,7 +367,7 @@ func (e *Engine) Ask(ctx context.Context, question string) (Result, error) {
 	}
 	res := Result{}
 	if len(hits) > 0 {
-		res.TopScore = hits[0].Score
+		res.TopScore, res.topPath = hits[0].Score, hits[0].Path
 	}
 	relevant := e.relevant(hits)
 	for _, h := range relevant {
@@ -370,7 +394,7 @@ func (e *Engine) Ask(ctx context.Context, question string) (Result, error) {
 		return Result{}, err
 	}
 	if strings.Contains(answer, config.NotPolishMarker) {
-		return Result{Answer: e.cfg.Language.OtherMessage, Reason: "language"}, nil
+		return Result{Answer: e.cfg.Language.OtherMessage, Reason: "language", TopScore: res.TopScore, topPath: res.topPath}, nil
 	}
 	if answer == "" || strings.Contains(answer, config.NoAnswerMarker) {
 		return e.fallback(res, "llm_no_answer"), nil

@@ -1,7 +1,9 @@
 package rag
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -335,5 +337,47 @@ func TestReadQuestions(t *testing.T) {
 	}
 	if _, err := ReadQuestions(strings.NewReader("{\"q\":\"\"}")); err == nil {
 		t.Error("empty q must fail")
+	}
+}
+
+func TestUnansweredLog(t *testing.T) {
+	e := setup(t)
+	e.index(t)
+	e.cfg.UnansweredLog = filepath.Join(t.TempDir(), "unanswered.jsonl")
+	eng := e.engine(t)
+	e.srv.ChatReply = "Użyj pg_restore."
+	for _, q := range []string{
+		"przepis na barszcz czerwony",                   // below threshold
+		"How do I reset my password?",                   // language
+		"przywracanie bazy PostgreSQL przez pg_restore", // answered: not logged
+	} {
+		if _, err := eng.Ask(context.Background(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f, err := os.Open(e.cfg.UnansweredLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var lines []map[string]any
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		var m map[string]any
+		if err := json.Unmarshal(sc.Bytes(), &m); err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, m)
+	}
+	if len(lines) != 2 || lines[0]["q"] != "przepis na barszcz czerwony" || lines[0]["reason"] != "below_threshold" ||
+		lines[0]["top_path"] == nil || lines[1]["reason"] != "language" {
+		t.Fatalf("log = %v", lines)
+	}
+
+	// The log is valid calibrate input: every question counts as "not in the base".
+	f.Seek(0, 0)
+	qs, err := ReadQuestions(f)
+	if err != nil || len(qs) != 2 || len(qs[0].Relevant) != 0 {
+		t.Fatalf("ReadQuestions = %v, %v", qs, err)
 	}
 }

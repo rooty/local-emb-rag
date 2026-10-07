@@ -87,6 +87,33 @@ kill -HUP $(pgrep -f 'localrag.*serve')    # если запущен serve: пе
 - `llm_no_answer` — статья нашлась, но LLM решила, что ответа в ней нет;
 - `language` — вопрос не на польском.
 
+## Чего не хватает в базе: `unanswered_log`
+
+Если в config.yaml задан `unanswered_log`, каждый вопрос, получивший заготовку, дописывается
+в этот файл, и через `ask`, и через `serve`:
+
+```json
+{"time":"2026-10-07T18:50:00Z","q":"Jak dodać podpis w Outlooku?","reason":"below_threshold","top_score":0.789,"top_path":"outlook-manual-sync.md"}
+```
+
+Как разбирать:
+
+- `reason: below_threshold` с низким score — темы, которых нет в базе. Повторяются — пишите статью;
+- `below_threshold` со score чуть ниже `min_score` и подходящей `top_path` — статья есть,
+  но вопрос сформулирован иначе: добавьте формулировку в её `questions`;
+- `llm_no_answer` — статья нашлась, но ответа в ней нет: её стоит дополнить
+  или написать отдельную;
+- `language` — вопросы не на польском.
+
+Файл подходит для `calibrate` как есть (все вопросы в нём считаются «ответа в базе нет»):
+
+```bash
+./localrag -config config.yaml calibrate unanswered.jsonl
+```
+
+После того как вы написали статьи, перенесите их вопросы в `examples/questions.jsonl`
+с нужным `relevant`, а файл очистите (`: > unanswered.jsonl`).
+
 ## Набор проверочных вопросов
 
 `examples/questions.jsonl` — вопросы для `calibrate`, по одному JSON на строку:

@@ -26,6 +26,10 @@ type Config struct {
 
 	Language Language `yaml:"language"`
 
+	// UnansweredLog is a JSONL file where questions that got a fallback are
+	// appended. Empty disables it.
+	UnansweredLog string `yaml:"unanswered_log"`
+
 	Server Server `yaml:"server"`
 }
 

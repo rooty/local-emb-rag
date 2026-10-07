@@ -64,5 +64,10 @@ language:
     No information is available.
     Please write to support@example.com or call +48 000 000 000.
 
+# Вопросы, на которые пришла заготовка, дописываются сюда (JSONL), по ним видно, каких статей
+# не хватает. Файл можно сразу передать в `localrag calibrate`. Пусто — не писать.
+# В файле тексты вопросов пользователей: храните его как персональные данные.
+unanswered_log: ./unanswered.jsonl
+
 server:
   addr: 127.0.0.1:8080
