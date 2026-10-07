@@ -28,3 +28,21 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestAPIKeyFromEnv(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "c.yaml")
+	os.WriteFile(p, []byte("answer:\n  base_url: https://ollama.com/v1\n  model: gemma4:31b\n  api_key: ${TEST_OLLAMA_KEY}\n"), 0o644)
+
+	t.Setenv("TEST_OLLAMA_KEY", "")
+	if _, err := Load(p); err == nil || !strings.Contains(err.Error(), "answer.api_key is required") {
+		t.Fatalf("missing key: err = %v", err)
+	}
+	t.Setenv("TEST_OLLAMA_KEY", "secret")
+	cfg, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Answer.APIKey != "secret" || cfg.Embedding.APIKey != "" {
+		t.Fatalf("keys: answer %q, embedding %q", cfg.Answer.APIKey, cfg.Embedding.APIKey)
+	}
+}

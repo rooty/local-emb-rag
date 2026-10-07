@@ -22,15 +22,31 @@ type env struct {
 	st  *store.Store
 }
 
+const chromeArticle = `---
+id: "chrome-crashes"
+title: "Chrome: przeglądarka zawiesza się lub zamyka"
+language: "pl"
+questions: ["Chrome ciągle się wyłącza", "Chrome freezes and crashes"]
+keywords: ["chrome crash", "zawieszenie chrome"]
+sourceUrl: "https://support.google.com/chrome/answer/142063"
+---
+## Kroki
+1. Zamknij zbędne karty i programy.
+2. Uruchom ponownie przeglądarkę Chrome.
+
+## Eskalacja
+Jeśli Chrome nadal się zamyka, zgłoś sprawę specjaliście.
+`
+
 func setup(t *testing.T) *env {
 	t.Helper()
 	dir := t.TempDir()
 	docs := filepath.Join(dir, "docs")
 	os.MkdirAll(docs, 0o755)
 	files := map[string]string{
-		"nginx.md":  "Nginx отдаёт ошибку 502 когда бэкенд упал. Проверьте error.log nginx и статус сервиса.",
-		"backup.md": "Резервное копирование PostgreSQL делается через pg_dump каждую ночь, восстановление через pg_restore.",
-		"vpn.txt":   "Доступ к VPN выдаёт тимлид через заявку в Jira, профиль WireGuard приходит на почту.",
+		"chrome.md": chromeArticle,
+		"backup.md": "Kopia zapasowa bazy PostgreSQL jest wykonywana co noc przez pg_dump, przywracanie przez pg_restore.",
+		"vpn.txt":   "Dostęp do VPN przyznaje kierownik zespołu przez zgłoszenie w Jira, profil WireGuard przychodzi mailem.",
 	}
 	for name, body := range files {
 		os.WriteFile(filepath.Join(docs, name), []byte(body), 0o644)
@@ -79,15 +95,26 @@ func TestIndexIsIncremental(t *testing.T) {
 	if s := e.index(t); s.Indexed != 3 || s.Unchanged != 0 {
 		t.Fatalf("first run: %+v", s)
 	}
-	if !strings.HasPrefix(e.srv.Inputs[0], "title: ") || !strings.Contains(e.srv.Inputs[0], "title: backup | text: ") {
-		t.Errorf("doc prefix not applied: %q", e.srv.Inputs[0])
+	inputs := strings.Join(e.srv.Inputs, "\n")
+	for _, want := range []string{
+		"title: backup | text: Kopia",                                          // file name when there is no front matter
+		"title: Chrome: przeglądarka zawiesza się lub zamyka | text: ## Kroki", // front matter title, body only
+		"task: search result | query: Chrome ciągle się wyłącza",               // front matter question
+		"task: search result | query: chrome crash, zawieszenie chrome",        // keywords
+	} {
+		if !strings.Contains(inputs, want) {
+			t.Errorf("embedded inputs lack %q", want)
+		}
+	}
+	if strings.Contains(inputs, "sourceUrl") || strings.Contains(inputs, "chrome-crashes") {
+		t.Error("front matter fields must not be embedded as text")
 	}
 	calls := e.srv.EmbedCalls
 	if s := e.index(t); s.Indexed != 0 || s.Unchanged != 3 || e.srv.EmbedCalls != calls {
 		t.Fatalf("second run must not re-embed: %+v, calls %d -> %d", s, calls, e.srv.EmbedCalls)
 	}
-	os.WriteFile(filepath.Join(e.cfg.DocsDir, "vpn.txt"), []byte("Новый текст про VPN."), 0o644)
-	os.Remove(filepath.Join(e.cfg.DocsDir, "nginx.md"))
+	os.WriteFile(filepath.Join(e.cfg.DocsDir, "vpn.txt"), []byte("Nowy tekst o VPN."), 0o644)
+	os.Remove(filepath.Join(e.cfg.DocsDir, "backup.md"))
 	if s := e.index(t); s.Indexed != 1 || s.Unchanged != 1 || s.Deleted != 1 {
 		t.Fatalf("after edit: %+v", s)
 	}
@@ -97,14 +124,62 @@ func TestIndexIsIncremental(t *testing.T) {
 	}
 }
 
-func TestAskFallsBackBelowThreshold(t *testing.T) {
+func TestAskMatchesFrontMatterQuestion(t *testing.T) {
 	e := setup(t)
 	e.index(t)
-	res, err := e.engine(t).Ask(context.Background(), "какая погода в Париже завтра")
+	e.srv.ChatReply = "Uruchom ponownie przeglądarkę."
+	// "ciągle" and "wyłącza" appear only in the front matter questions.
+	res, err := e.engine(t).Ask(context.Background(), "chrome ciągle się wyłącza")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Answered || res.Answer != e.cfg.FallbackMessage || res.Reason != "below_threshold" {
+	if !res.Answered || len(res.Sources) == 0 {
+		t.Fatalf("res = %+v", res)
+	}
+	src := res.Sources[0]
+	if src.Path != "chrome.md" || src.Title != "Chrome: przeglądarka zawiesza się lub zamyka" || src.URL != "https://support.google.com/chrome/answer/142063" {
+		t.Errorf("source = %+v", src)
+	}
+	if !strings.Contains(e.srv.LastChat, "Uruchom ponownie przeglądarkę Chrome") {
+		t.Errorf("LLM must get the article body:\n%s", e.srv.LastChat)
+	}
+	articles, _, _ := strings.Cut(e.srv.LastChat, "Question:")
+	if strings.Contains(articles, "ciągle") {
+		t.Errorf("front matter questions must not be passed as article text:\n%s", e.srv.LastChat)
+	}
+}
+
+func TestAskRejectsOtherLanguages(t *testing.T) {
+	e := setup(t)
+	e.index(t)
+	calls := e.srv.EmbedCalls
+	for _, q := range []string{"Chrome freezes and crashes", "Хром зависает"} {
+		res, err := e.engine(t).Ask(context.Background(), q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Answered || res.Answer != e.cfg.Language.OtherMessage || res.Reason != "language" {
+			t.Errorf("%q: res = %+v", q, res)
+		}
+	}
+	if e.srv.EmbedCalls != calls {
+		t.Error("a question in another language must not be searched")
+	}
+	e.cfg.Language.Expected = ""
+	res, err := e.engine(t).Ask(context.Background(), "Chrome freezes and crashes")
+	if err != nil || res.Reason == "language" {
+		t.Errorf("language check must be off: %+v, %v", res, err)
+	}
+}
+
+func TestAskFallsBackBelowThreshold(t *testing.T) {
+	e := setup(t)
+	e.index(t)
+	res, err := e.engine(t).Ask(context.Background(), "przepis na barszcz czerwony")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Answered || res.Answer != e.cfg.FallbackMessage || res.Reason != "below_threshold" || len(res.Sources) != 0 {
 		t.Fatalf("res = %+v", res)
 	}
 	if e.srv.LastChat != "" {
@@ -115,16 +190,16 @@ func TestAskFallsBackBelowThreshold(t *testing.T) {
 func TestAskWithLLM(t *testing.T) {
 	e := setup(t)
 	e.index(t)
-	e.srv.ChatReply = "Используйте pg_restore. Источник: backup.md"
-	res, err := e.engine(t).Ask(context.Background(), "как восстановление PostgreSQL через pg_restore")
+	e.srv.ChatReply = "Użyj pg_restore. Źródło: backup.md"
+	res, err := e.engine(t).Ask(context.Background(), "przywracanie bazy PostgreSQL przez pg_restore")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !res.Answered || res.Answer != e.srv.ChatReply || res.Sources[0].Path != "backup.md" {
 		t.Fatalf("res = %+v", res)
 	}
-	if !strings.Contains(e.srv.LastChat, "Файл: backup.md") || strings.Contains(e.srv.LastChat, "Файл: vpn.txt") {
-		t.Errorf("prompt must contain only chunks above the threshold:\n%s", e.srv.LastChat)
+	if !strings.Contains(e.srv.LastChat, "(backup.md)") || strings.Contains(e.srv.LastChat, "(vpn.txt)") {
+		t.Errorf("prompt must contain only documents above the threshold:\n%s", e.srv.LastChat)
 	}
 }
 
@@ -132,7 +207,7 @@ func TestAskLLMSaysNoAnswer(t *testing.T) {
 	e := setup(t)
 	e.index(t)
 	e.srv.ChatReply = config.NoAnswerMarker
-	res, err := e.engine(t).Ask(context.Background(), "восстановление PostgreSQL pg_restore на другой версии")
+	res, err := e.engine(t).Ask(context.Background(), "przywracanie bazy PostgreSQL pg_restore na innej wersji")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,12 +220,59 @@ func TestAskFragmentsMode(t *testing.T) {
 	e := setup(t)
 	e.cfg.Answer.Mode = config.ModeFragments
 	e.index(t)
-	res, err := e.engine(t).Ask(context.Background(), "ошибка 502 nginx бэкенд")
+	res, err := e.engine(t).Ask(context.Background(), "zawieszenie chrome, uruchom ponownie przeglądarkę")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Answered || !strings.Contains(res.Answer, "[nginx.md") || e.srv.LastChat != "" {
+	if !res.Answered || !strings.Contains(res.Answer, "[Chrome: przeglądarka") ||
+		!strings.Contains(res.Answer, "https://support.google.com") || e.srv.LastChat != "" {
 		t.Fatalf("res = %+v, chat = %q", res, e.srv.LastChat)
+	}
+}
+
+func TestIndexDetectsBrokenBatching(t *testing.T) {
+	for _, broken := range []bool{false, true} {
+		e := setup(t)
+		e.srv.BrokenBatch = broken
+		e.cfg.Embedding.BatchSize = 8
+		var logs []string
+		_, err := Index(context.Background(), e.cfg, e.embedder(), e.st, func(f string, a ...any) {
+			logs = append(logs, fmt.Sprintf(f, a...))
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		warned := strings.Contains(strings.Join(logs, "\n"), "falling back to batch_size 1")
+		if warned != broken {
+			t.Errorf("broken=%v: warned=%v, logs %v", broken, warned, logs)
+		}
+		res, err := e.engine(t).Ask(context.Background(), "przywracanie bazy PostgreSQL pg_restore")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.Answered || res.Sources[0].Path != "backup.md" {
+			t.Errorf("broken=%v: index is unusable: %+v", broken, res)
+		}
+	}
+}
+
+func TestRelevantMaxGap(t *testing.T) {
+	hits := []DocHit{{Score: 0.79}, {Score: 0.76}, {Score: 0.73}, {Score: 0.60}}
+	e := &Engine{cfg: config.Default()}
+	e.cfg.Search.MinScore = 0.65
+	cases := []struct {
+		gap  float64
+		want int
+	}{{0.05, 2}, {0.1, 3}, {0, 3}}
+	for _, c := range cases {
+		e.cfg.Search.MaxGap = c.gap
+		if got := len(e.relevant(hits)); got != c.want {
+			t.Errorf("max_gap %v: %d hits, want %d", c.gap, got, c.want)
+		}
+	}
+	e.cfg.Search.MinScore = 0.8
+	if got := len(e.relevant(hits)); got != 0 {
+		t.Errorf("below min_score: %d hits", got)
 	}
 }
 
@@ -186,51 +308,5 @@ func TestReadQuestions(t *testing.T) {
 	}
 	if _, err := ReadQuestions(strings.NewReader("{\"q\":\"\"}")); err == nil {
 		t.Error("empty q must fail")
-	}
-}
-
-func TestIndexDetectsBrokenBatching(t *testing.T) {
-	for _, broken := range []bool{false, true} {
-		e := setup(t)
-		e.srv.BrokenBatch = broken
-		e.cfg.Embedding.BatchSize = 8
-		var logs []string
-		_, err := Index(context.Background(), e.cfg, e.embedder(), e.st, func(f string, a ...any) {
-			logs = append(logs, fmt.Sprintf(f, a...))
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		warned := strings.Contains(strings.Join(logs, "\n"), "falling back to batch_size 1")
-		if warned != broken {
-			t.Errorf("broken=%v: warned=%v, logs %v", broken, warned, logs)
-		}
-		res, err := e.engine(t).Ask(context.Background(), "восстановление PostgreSQL pg_restore")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !res.Answered || res.Sources[0].Path != "backup.md" {
-			t.Errorf("broken=%v: index is unusable: %+v", broken, res)
-		}
-	}
-}
-
-func TestRelevantMaxGap(t *testing.T) {
-	hits := []store.Hit{{Score: 0.79}, {Score: 0.76}, {Score: 0.73}, {Score: 0.60}}
-	e := &Engine{cfg: config.Default()}
-	e.cfg.Search.MinScore = 0.65
-	cases := []struct {
-		gap  float64
-		want int
-	}{{0.05, 2}, {0.1, 3}, {0, 3}}
-	for _, c := range cases {
-		e.cfg.Search.MaxGap = c.gap
-		if got := len(e.relevant(hits)); got != c.want {
-			t.Errorf("max_gap %v: %d hits, want %d", c.gap, got, c.want)
-		}
-	}
-	e.cfg.Search.MinScore = 0.8
-	if got := len(e.relevant(hits)); got != 0 {
-		t.Errorf("below min_score: %d hits", got)
 	}
 }

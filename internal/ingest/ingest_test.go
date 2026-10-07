@@ -82,3 +82,27 @@ func TestLoad(t *testing.T) {
 		t.Errorf("bad hashes")
 	}
 }
+
+func TestSplitFrontMatter(t *testing.T) {
+	text := "---\r\nid: \"chrome-crashes\"\r\ntitle: \"Chrome: przeglądarka zawiesza się\"\r\nquestions: [\"Chrome zawiesza się\",\"Chrome freezes\"]\r\nkeywords: [\"chrome crash\"]\r\nsourceUrl: \"https://support.google.com/chrome/answer/142063?hl=en&co=GENIE.Platform%3DDesktop\"\r\n---\r\n## Objawy\r\nCała przeglądarka zamyka się.\r\n"
+	meta, body, err := SplitFrontMatter(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Title != "Chrome: przeglądarka zawiesza się" || len(meta.Questions) != 2 || meta.Keywords[0] != "chrome crash" ||
+		!strings.HasSuffix(meta.SourceURL, "Platform%3DDesktop") {
+		t.Errorf("meta = %+v", meta)
+	}
+	if body != "## Objawy\nCała przeglądarka zamyka się.\n" {
+		t.Errorf("body = %q", body)
+	}
+
+	if _, body, err := SplitFrontMatter("# Bez nagłówka\n---\ntekst"); err != nil || body != "# Bez nagłówka\n---\ntekst" {
+		t.Errorf("no front matter: %q, %v", body, err)
+	}
+	for _, bad := range []string{"---\ntitle: x\n", "---\ntitle: [x\n---\nbody", "---\ntitle: x\n---tail\nbody"} {
+		if _, _, err := SplitFrontMatter(bad); err == nil {
+			t.Errorf("%q: expected an error", bad)
+		}
+	}
+}

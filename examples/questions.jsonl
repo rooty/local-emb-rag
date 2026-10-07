@@ -1,20 +1,22 @@
-{"q": "сайт открывается с ошибкой плохого шлюза после выкатки", "relevant": ["nginx-502.md"]}
-{"q": "как вернуть базу из дампа", "relevant": ["postgres-backup.md"]}
-{"q": "контейнер убивает ядро из-за нехватки оперативки", "relevant": ["k8s-oomkilled.md"]}
-{"q": "Java-приложение в кубере падает по памяти", "relevant": ["k8s-oomkilled.md"]}
-{"q": "https перестал работать, сертификат протух", "relevant": ["tls-certs.md"]}
-{"q": "сервер пишет no space left on device", "relevant": ["disk-full.md"]}
-{"q": "место вроде есть, но файлы не создаются", "relevant": ["disk-full.md"]}
-{"q": "что выдать новичку в команде", "relevant": ["onboarding.md"]}
-{"q": "можно ли закинуть свой ssh-ключ прямо на сервер", "relevant": ["onboarding.md"]}
-{"q": "пайплайн собирается полчаса, как ускорить", "relevant": ["ci-cache.md"]}
-{"q": "прод лежит, что делать в первую очередь", "relevant": ["incident.md"]}
-{"q": "кэш стал тормозить, ответы приходят медленно", "relevant": ["redis-latency.md"]}
-{"q": "куда положить токен от внешнего API", "relevant": ["secrets.md"]}
-{"q": "как часто меняются пароли к базам", "relevant": ["secrets.md"]}
-{"q": "где лежат копии базы и сколько хранятся", "relevant": ["postgres-backup.md"]}
-{"q": "сколько дней отпуска положено в году", "relevant": []}
-{"q": "как оформить командировку", "relevant": []}
-{"q": "где заказать пропуск для гостя", "relevant": []}
-{"q": "какой рецепт у борща", "relevant": []}
-{"q": "кто отвечает за закупку ноутбуков", "relevant": []}
+{"q": "chrome mi się wiesza co chwilę", "relevant": ["chrome-crashes.md"]}
+{"q": "przeglądarka sama się zamyka podczas pracy", "relevant": ["chrome-crashes.md"]}
+{"q": "maile nie wychodzą z outlooka", "relevant": ["outlook-cannot-send.md"]}
+{"q": "wiadomość utknęła w skrzynce nadawczej", "relevant": ["outlook-cannot-send.md"]}
+{"q": "jest wifi a internetu nie ma", "relevant": ["wifi-no-internet.md"]}
+{"q": "strony się nie ładują chociaż sieć jest podłączona", "relevant": ["wifi-no-internet.md"]}
+{"q": "drukarka nie reaguje, dokumenty czekają w kolejce", "relevant": ["printer-offline.md"]}
+{"q": "jak wydrukować gdy drukarka jest offline", "relevant": ["printer-offline.md"]}
+{"q": "nie pamiętam hasła do logowania", "relevant": ["password-reset.md"]}
+{"q": "jak ustawić nowe hasło", "relevant": ["password-reset.md"]}
+{"q": "z domu nie łączy mi się vpn", "relevant": ["vpn-cannot-connect.md"]}
+{"q": "nie mam dostępu do sieci firmowej przez vpn", "relevant": ["vpn-cannot-connect.md"]}
+{"q": "na spotkaniu w teams nic nie słychać", "relevant": ["teams-no-sound.md"]}
+{"q": "koledzy mówią że mnie nie słychać", "relevant": ["teams-no-sound.md"]}
+{"q": "zabrakło miejsca na dysku", "relevant": ["disk-full-windows.md"]}
+{"q": "jak zwolnić miejsce na komputerze", "relevant": ["disk-full-windows.md"]}
+{"q": "ile dni urlopu mi przysługuje", "relevant": []}
+{"q": "jak rozliczyć delegację", "relevant": []}
+{"q": "gdzie zamówić przepustkę dla gościa", "relevant": []}
+{"q": "przepis na barszcz czerwony", "relevant": []}
+{"q": "kto odpowiada za zakup laptopów", "relevant": []}
+{"q": "jak skonfigurować drugi monitor", "relevant": []}

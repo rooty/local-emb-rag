@@ -15,14 +15,30 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Doc struct {
 	// Path is relative to the docs directory, with forward slashes.
 	Path string
+	// Text is the document body without the front matter.
 	Text string
 	// Hash is the SHA-256 of the raw file, used for incremental reindexing.
 	Hash string
+	Meta Meta
+}
+
+// Meta is the optional YAML front matter of a Markdown article.
+type Meta struct {
+	ID         string   `yaml:"id"`
+	Title      string   `yaml:"title"`
+	Category   string   `yaml:"category"`
+	Language   string   `yaml:"language"`
+	Questions  []string `yaml:"questions"`
+	Keywords   []string `yaml:"keywords"`
+	SourceName string   `yaml:"sourceName"`
+	SourceURL  string   `yaml:"sourceUrl"`
 }
 
 var textExts = map[string]bool{".md": true, ".markdown": true, ".txt": true, ".rst": true}
@@ -65,8 +81,13 @@ func Load(ctx context.Context, dir string) (docs []Doc, skipped map[string]error
 			skipped[rel] = err
 			return nil
 		}
+		meta, body, err := SplitFrontMatter(text)
+		if err != nil {
+			skipped[rel] = err
+			return nil
+		}
 		sum := sha256.Sum256(raw)
-		docs = append(docs, Doc{Path: rel, Text: text, Hash: hex.EncodeToString(sum[:])})
+		docs = append(docs, Doc{Path: rel, Text: body, Hash: hex.EncodeToString(sum[:]), Meta: meta})
 		return nil
 	})
 	sort.Slice(docs, func(i, j int) bool { return docs[i].Path < docs[j].Path })
@@ -94,6 +115,36 @@ func extract(ctx context.Context, path string, raw []byte) (string, error) {
 	}
 	// pdftotext separates pages with form feeds; treat them as paragraph breaks.
 	return strings.ReplaceAll(out.String(), "\f", "\n\n"), nil
+}
+
+// SplitFrontMatter separates a leading "---" YAML block from the body.
+// Text without front matter is returned unchanged with empty Meta.
+func SplitFrontMatter(text string) (Meta, string, error) {
+	var meta Meta
+	t := strings.TrimPrefix(strings.ReplaceAll(text, "\r\n", "\n"), "\ufeff")
+	if !strings.HasPrefix(t, "---\n") {
+		return meta, text, nil
+	}
+	rest := t[len("---\n"):]
+	end := strings.Index(rest, "\n---")
+	if end < 0 {
+		return meta, "", fmt.Errorf("front matter: closing --- not found")
+	}
+	after := rest[end+len("\n---"):]
+	if nl := strings.IndexByte(after, '\n'); nl >= 0 {
+		if strings.TrimSpace(after[:nl]) != "" {
+			return meta, "", fmt.Errorf("front matter: closing --- must be on its own line")
+		}
+		after = after[nl+1:]
+	} else if strings.TrimSpace(after) != "" {
+		return meta, "", fmt.Errorf("front matter: closing --- must be on its own line")
+	} else {
+		after = ""
+	}
+	if err := yaml.Unmarshal([]byte(rest[:end]), &meta); err != nil {
+		return meta, "", fmt.Errorf("front matter: %w", err)
+	}
+	return meta, after, nil
 }
 
 var paraSep = regexp.MustCompile(`\n[ \t]*\n`)

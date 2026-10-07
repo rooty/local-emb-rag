@@ -158,7 +158,14 @@ func runAsk(ctx context.Context, cfg config.Config, q string) error {
 	if res.Answered && cfg.Answer.Mode == config.ModeLLM {
 		fmt.Println()
 		for _, s := range res.Sources {
-			fmt.Printf("  источник: %s (%.2f)\n", s.Path, s.Score)
+			name := s.Path
+			if s.Title != "" {
+				name = s.Title + " (" + s.Path + ")"
+			}
+			fmt.Printf("  source: %s, %.2f\n", name, s.Score)
+			if s.URL != "" {
+				fmt.Printf("          %s\n", s.URL)
+			}
 		}
 	}
 	if !res.Answered {

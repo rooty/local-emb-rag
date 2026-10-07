@@ -27,6 +27,7 @@ func TestAskEndpoint(t *testing.T) {
 	cfg.Embedding.BaseURL, cfg.Embedding.Dims = srv.BaseURL(), 0
 	cfg.Answer.Mode = config.ModeFragments
 	cfg.Search.MinScore = 0.3
+	cfg.Language.Expected = "" // the test documents are in Russian
 	st, err := store.Open(cfg.DBPath)
 	if err != nil {
 		t.Fatal(err)

@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -23,6 +24,8 @@ type Config struct {
 	// FallbackMessage is returned verbatim when the knowledge base has no answer.
 	FallbackMessage string `yaml:"fallback_message"`
 
+	Language Language `yaml:"language"`
+
 	Server Server `yaml:"server"`
 }
 
@@ -33,7 +36,7 @@ type Embedding struct {
 	Model   string `yaml:"model"`
 	APIKey  string `yaml:"api_key"`
 	// QueryPrefix and DocPrefix are prepended before embedding.
-	// "{title}" in DocPrefix is replaced with the document file name.
+	// "{title}" in DocPrefix is replaced with the front matter title or the file name.
 	QueryPrefix string `yaml:"query_prefix"`
 	DocPrefix   string `yaml:"doc_prefix"`
 	// Dims truncates vectors (Matryoshka); 0 keeps the full size.
@@ -69,6 +72,15 @@ type Answer struct {
 	TimeoutSec   int     `yaml:"timeout_sec"`
 }
 
+// Language restricts the language of questions.
+type Language struct {
+	// Expected is "pl" to answer only Polish questions, or "" to accept any language.
+	Expected string `yaml:"expected"`
+	// OtherMessage is returned verbatim, without searching, for a question
+	// in another language.
+	OtherMessage string `yaml:"other_message"`
+}
+
 type Server struct {
 	Addr string `yaml:"addr"`
 }
@@ -76,10 +88,11 @@ type Server struct {
 // NoAnswerMarker is what the chat model must reply when the context has no answer.
 const NoAnswerMarker = "NO_ANSWER"
 
-const defaultSystemPrompt = `Ты помощник по внутренней документации. Отвечай на русском, кратко и по делу,
-используя ТОЛЬКО фрагменты документов ниже. Ничего не придумывай и не используй внешние знания.
-В конце перечисли файлы-источники, на которые опирался.
-Если во фрагментах нет ответа на вопрос, ответь ровно одним словом: ` + NoAnswerMarker
+const defaultSystemPrompt = `You are a helpdesk assistant. Answer ONLY from the knowledge base articles below.
+Do not use outside knowledge and do not invent steps, commands or settings that are not in the articles.
+Answer in the language of the question, briefly, keeping the steps, the verification and the escalation
+advice from the article.
+If the articles do not answer the question, reply with exactly one word: ` + NoAnswerMarker
 
 func Default() Config {
 	return Config{
@@ -106,8 +119,12 @@ func Default() Config {
 			Temperature:  0.1,
 			TimeoutSec:   300,
 		},
-		FallbackMessage: "По вашему вопросу в базе знаний данных нет. Напишите нам на support@example.com или позвоните по телефону +7 (000) 000-00-00.",
-		Server:          Server{Addr: "127.0.0.1:8080"},
+		FallbackMessage: "Nie znaleźliśmy odpowiedzi na to pytanie w bazie wiedzy. Napisz do nas na support@example.com lub zadzwoń pod numer +48 000 000 000.",
+		Language: Language{
+			Expected:     "pl",
+			OtherMessage: "No information is available. Please write to support@example.com or call +48 000 000 000.",
+		},
+		Server: Server{Addr: "127.0.0.1:8080"},
 	}
 }
 
@@ -122,6 +139,10 @@ func Load(path string) (Config, error) {
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
 			return cfg, fmt.Errorf("%s: %w", path, err)
 		}
+	}
+	// Secrets can stay out of the file: api_key: ${OLLAMA_API_KEY}
+	for _, f := range []*string{&cfg.Embedding.APIKey, &cfg.Embedding.BaseURL, &cfg.Answer.APIKey, &cfg.Answer.BaseURL} {
+		*f = os.ExpandEnv(*f)
 	}
 	return cfg, cfg.Validate()
 }
@@ -158,8 +179,35 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.FallbackMessage) == "" {
 		errs = append(errs, "fallback_message is required")
 	}
+	for _, ep := range []struct{ name, url, key string }{
+		{"embedding", c.Embedding.BaseURL, c.Embedding.APIKey},
+		{"answer", c.Answer.BaseURL, c.Answer.APIKey},
+	} {
+		if needsKey(ep.url) && ep.key == "" {
+			errs = append(errs, ep.name+".api_key is required for "+ep.url+" (set it or export the variable it refers to)")
+		}
+	}
+	switch c.Language.Expected {
+	case "":
+	case "pl":
+		if strings.TrimSpace(c.Language.OtherMessage) == "" {
+			errs = append(errs, "language.other_message is required when language.expected is set")
+		}
+	default:
+		errs = append(errs, `language.expected must be "pl" or empty`)
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("config: %s", strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+// needsKey reports whether baseURL points to Ollama's cloud, which requires an API key.
+func needsKey(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	h := strings.ToLower(u.Hostname())
+	return h == "ollama.com" || strings.HasSuffix(h, ".ollama.com")
 }
