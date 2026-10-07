@@ -32,6 +32,7 @@ db_path: /var/lib/localrag/localrag.db
 search:
   min_score: 0.81      # из calibrate на ваших статьях
   max_gap: 0.03
+unanswered_log: /var/lib/localrag/unanswered.jsonl
 fallback_message: |
   Nie znaleźliśmy odpowiedzi na to pytanie w bazie wiedzy.
   Napisz do nas na <адрес> lub zadzwoń pod numer <телефон>.
@@ -156,8 +157,12 @@ curl -s https://kb.example.com/ask -u user:pass -d '{"question": "Outlook pisze,
 - `GET /healthz` → `chunks` больше 0. Он проверяет только сам процесс и индекс,
   но не Ollama. Доступность моделей проверяйте отдельно (`curl localhost:11434/api/tags`)
   или по ответам 502.
-- Логи: `journalctl -u localrag`. `serve` пишет только старт, перезагрузку индекса и
-  ошибки. Вопросы и заготовки сейчас не логируются.
+- Логи: `journalctl -u localrag`. `serve` пишет только старт, перезагрузку индекса и ошибки.
+- Вопросы без ответа: `unanswered_log: /var/lib/localrag/unanswered.jsonl`. Каждая заготовка
+  дописывает строку с вопросом, причиной (`language`, `below_threshold`, `llm_no_answer`),
+  лучшим score и ближайшей статьёй. Файл открывается на каждую запись, поэтому его можно
+  ротировать обычным logrotate. Права 600: в нём тексты вопросов пользователей, то есть,
+  возможно, персональные данные. Как с ним работать — [knowledge-base.md](knowledge-base.md).
 
 ## 9. Приватность и ollama.com
 
@@ -175,6 +180,7 @@ curl -s https://kb.example.com/ask -u user:pass -d '{"question": "Outlook pisze,
 - [ ] `server.addr` = `127.0.0.1:...`, снаружи nginx с TLS и доступом.
 - [ ] `OLLAMA_KEEP_ALIVE`, модели загружены, первый ответ приходит без долгой загрузки.
 - [ ] Обновление статей: `index` + `systemctl reload localrag` описано в регламенте или автоматизировано.
+- [ ] `unanswered_log` включён, кто-то регулярно его разбирает.
 
 ## Известные ограничения
 
@@ -183,6 +189,5 @@ curl -s https://kb.example.com/ask -u user:pass -d '{"question": "Outlook pisze,
   второй проверки нет.
 - Если такой английский вопрос не наберёт `min_score`, пользователь получит польскую
   заготовку, а не английскую.
-- Не логируются вопросы без ответа, а это лучший источник новых статей. Можно добавить.
 - Один процесс, индекс в памяти. На тысячах статей это не проблема; отдельная векторная
   БД (Qdrant) понадобится на сотнях тысяч векторов или при общем индексе для нескольких сервисов.
