@@ -58,6 +58,19 @@ sourceUrl: https://support.google.com/chrome/answer/95669
 Примеры: `examples/docs/` (16 польских helpdesk-статей) и `examples/questions.jsonl`
 (29 перефразированных вопросов к ним и 12 вопросов, ответа на которые в базе нет).
 
+## Готовые бинарники
+
+GitHub Actions (`.github/workflows/build.yml`) на каждый push и PR в `main` прогоняет тесты и
+собирает `localrag` для linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 (архивы лежат
+в artifacts запуска). На тег `v*` создаётся релиз с архивами и `SHA256SUMS`:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+Бинарники для macOS не подписаны: после скачивания снимите карантин
+`xattr -d com.apple.quarantine ./localrag`.
+
 ## Быстрый старт
 
 ```bash
