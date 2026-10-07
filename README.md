@@ -21,6 +21,7 @@
 - [Пополнение базы знаний](manual/knowledge-base.md): формат статей, как писать `questions`, проверка
 - [Индекс](manual/index.md): обновление, полная пересборка, смена модели, порог `min_score`
 - [Продакшен](manual/production.md): systemd, nginx, API для клиента, мониторинг, чек-лист
+- [Релизы](manual/releases.md): выпуск новой версии, скачивание из консоли (gh, curl, wget)
 
 ## Что нужно
 
@@ -67,6 +68,8 @@ GitHub Actions (`.github/workflows/build.yml`) на каждый push и PR в `
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
 ```
+
+Как выпускать релизы и скачивать их из консоли: [manual/releases.md](manual/releases.md).
 
 Бинарники для macOS не подписаны: после скачивания снимите карантин
 `xattr -d com.apple.quarantine ./localrag`.
