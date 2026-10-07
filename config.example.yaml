@@ -1,0 +1,44 @@
+# Скопируйте в config.yaml и поправьте под себя.
+
+docs_dir: ./docs          # папка с базой знаний: .md .markdown .txt .rst .pdf (PDF через pdftotext)
+db_path: ./localrag.db    # индекс (SQLite)
+chunk_chars: 1200         # максимальный размер фрагмента в символах
+
+embedding:
+  # Любой OpenAI-совместимый /embeddings: Ollama (http://localhost:11434/v1),
+  # llama-server (http://localhost:8081/v1), vLLM.
+  base_url: http://localhost:11434/v1
+  model: embeddinggemma-2           # имя модели в вашем Ollama / llama-server
+  # Префиксы из карточки EmbeddingGemma 2. {title} = имя файла без расширения.
+  query_prefix: "task: search result | query: "
+  doc_prefix: "title: {title} | text: "
+  dims: 256                         # обрезка вектора (Matryoshka): 768/512/256/128, 0 = как отдаёт модель
+  batch_size: 16
+  timeout_sec: 120
+
+  # Для BGE-M3 вместо Gemma:
+  # model: bge-m3
+  # query_prefix: ""
+  # doc_prefix: ""
+  # dims: 0
+
+search:
+  top_k: 5
+  # Если лучший фрагмент похож на вопрос меньше, чем на min_score, ответа в базе нет
+  # и отдаётся fallback_message. Подберите командой `localrag calibrate`.
+  min_score: 0.5
+
+answer:
+  mode: llm                 # llm — ответ формулирует модель; fragments — выдать найденные фрагменты как есть
+  base_url: http://localhost:11434/v1
+  model: gemma4             # любая чат-модель в Ollama
+  temperature: 0.1
+  timeout_sec: 300
+  # system_prompt: |        # свой промпт; модель должна ответить NO_ANSWER, если в фрагментах ответа нет
+
+fallback_message: |
+  По вашему вопросу в базе знаний данных нет.
+  Напишите нам на support@example.com или позвоните по телефону +7 (000) 000-00-00.
+
+server:
+  addr: 127.0.0.1:8080

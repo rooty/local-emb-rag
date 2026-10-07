@@ -1,0 +1,5 @@
+/localrag
+*.db
+*.db-shm
+*.db-wal
+/config.yaml
