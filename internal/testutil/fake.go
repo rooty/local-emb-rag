@@ -49,7 +49,10 @@ type Server struct {
 	Inputs     []string
 	// ChatReply is returned by /chat/completions.
 	ChatReply string
-	LastChat  string
+	// BrokenBatch makes /embeddings return wrong vectors for multi-input
+	// requests, like Ollama did with EmbeddingGemma.
+	BrokenBatch bool
+	LastChat    string
 }
 
 func NewServer(t *testing.T) *Server {
@@ -64,6 +67,7 @@ func NewServer(t *testing.T) *Server {
 		s.mu.Lock()
 		s.EmbedCalls++
 		s.Inputs = append(s.Inputs, req.Input...)
+		broken := s.BrokenBatch && len(req.Input) > 1
 		s.mu.Unlock()
 		type item struct {
 			Index     int       `json:"index"`
@@ -74,6 +78,9 @@ func NewServer(t *testing.T) *Server {
 		for i := len(req.Input) - 1; i >= 0; i-- {
 			// Strip the task prefixes so they do not dominate the toy similarity.
 			text := prefix.ReplaceAllString(req.Input[i], "")
+			if broken {
+				text = "мусор"
+			}
 			data = append(data, item{Index: i, Embedding: BagOfWords(text)})
 		}
 		json.NewEncoder(w).Encode(map[string]any{"data": data})

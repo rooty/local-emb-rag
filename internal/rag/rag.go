@@ -58,6 +58,8 @@ func Index(ctx context.Context, cfg config.Config, emb Embedder, st *store.Store
 	if err != nil {
 		return stats, err
 	}
+	batch := cfg.Embedding.BatchSize
+	probed := batch == 1
 	seen := map[string]bool{}
 	for _, d := range docs {
 		seen[d.Path] = true
@@ -70,7 +72,19 @@ func Index(ctx context.Context, cfg config.Config, emb Embedder, st *store.Store
 			stats.Skipped[d.Path] = fmt.Errorf("no text")
 			continue
 		}
-		vecs, err := embedBatched(ctx, emb, docInputs(cfg.Embedding.DocPrefix, d.Path, texts), cfg.Embedding.BatchSize)
+		inputs := docInputs(cfg.Embedding.DocPrefix, d.Path, texts)
+		if !probed {
+			probed = true
+			ok, err := batchConsistent(ctx, emb, inputs[0])
+			if err != nil {
+				return stats, err
+			}
+			if !ok {
+				logf("WARNING: the embedding server returns different vectors for batched and single requests; falling back to batch_size 1")
+				batch = 1
+			}
+		}
+		vecs, err := embedBatched(ctx, emb, inputs, batch)
 		if err != nil {
 			return stats, fmt.Errorf("%s: %w", d.Path, err)
 		}
@@ -107,6 +121,38 @@ func docInputs(prefix, docPath string, texts []string) []string {
 		out[i] = p + t
 	}
 	return out
+}
+
+// batchConsistent checks that embedding texts in one request gives the same
+// vectors as embedding them one by one. Ollama was seen returning garbage
+// for batched EmbeddingGemma requests, which silently ruins the whole index.
+func batchConsistent(ctx context.Context, emb Embedder, sample string) (bool, error) {
+	inputs := []string{sample, "title: none | text: проверка пакетной обработки эмбеддингов"}
+	batched, err := emb.Embed(ctx, inputs)
+	if err != nil {
+		return false, err
+	}
+	for i, in := range inputs {
+		single, err := emb.Embed(ctx, []string{in})
+		if err != nil {
+			return false, err
+		}
+		if cosine(batched[i], single[0]) < 0.99 {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func cosine(a, b []float32) float64 {
+	if len(a) != len(b) {
+		return 0
+	}
+	var dot float64
+	for i := range a {
+		dot += float64(a[i]) * float64(b[i])
+	}
+	return dot // vectors are already normalized
 }
 
 func embedBatched(ctx context.Context, emb Embedder, inputs []string, batch int) ([][]float32, error) {
@@ -197,13 +243,7 @@ func (e *Engine) Ask(ctx context.Context, question string) (Result, error) {
 	if len(hits) > 0 {
 		res.TopScore = hits[0].Score
 	}
-	// Only chunks that pass the threshold are used for the answer.
-	var relevant []store.Hit
-	for _, h := range hits {
-		if h.Score >= e.cfg.Search.MinScore {
-			relevant = append(relevant, h)
-		}
-	}
+	relevant := e.relevant(hits)
 	if len(relevant) == 0 {
 		return e.fallback(res, "below_threshold"), nil
 	}
@@ -227,6 +267,20 @@ func (e *Engine) Ask(ctx context.Context, question string) (Result, error) {
 	res.Answered = true
 	res.Answer = answer
 	return res, nil
+}
+
+// relevant keeps the hits that pass min_score and are within max_gap of the
+// best one. Hits are sorted by score, so the result is a prefix of hits.
+func (e *Engine) relevant(hits []store.Hit) []store.Hit {
+	s := e.cfg.Search
+	n := 0
+	for _, h := range hits {
+		if h.Score < s.MinScore || (s.MaxGap > 0 && h.Score < hits[0].Score-s.MaxGap) {
+			break
+		}
+		n++
+	}
+	return hits[:n]
 }
 
 func (e *Engine) fallback(res Result, reason string) Result {

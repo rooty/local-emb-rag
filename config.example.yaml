@@ -13,7 +13,7 @@ embedding:
   query_prefix: "task: search result | query: "
   doc_prefix: "title: {title} | text: "
   dims: 256                         # обрезка вектора (Matryoshka): 768/512/256/128, 0 = как отдаёт модель
-  batch_size: 16
+  batch_size: 1                     # Ollama портит векторы при пакетной отправке EmbeddingGemma; при >1 localrag проверит пакет сам
   timeout_sec: 120
 
   # Для BGE-M3 вместо Gemma:
@@ -27,6 +27,9 @@ search:
   # Если лучший фрагмент похож на вопрос меньше, чем на min_score, ответа в базе нет
   # и отдаётся fallback_message. Подберите командой `localrag calibrate`.
   min_score: 0.5
+  # Фрагменты, которые хуже лучшего больше чем на max_gap, не идут ни в ответ,
+  # ни в список источников. 0 — выключить.
+  max_gap: 0.05
 
 answer:
   mode: llm                 # llm — ответ формулирует модель; fragments — выдать найденные фрагменты как есть

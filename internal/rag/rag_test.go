@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -185,5 +186,51 @@ func TestReadQuestions(t *testing.T) {
 	}
 	if _, err := ReadQuestions(strings.NewReader("{\"q\":\"\"}")); err == nil {
 		t.Error("empty q must fail")
+	}
+}
+
+func TestIndexDetectsBrokenBatching(t *testing.T) {
+	for _, broken := range []bool{false, true} {
+		e := setup(t)
+		e.srv.BrokenBatch = broken
+		e.cfg.Embedding.BatchSize = 8
+		var logs []string
+		_, err := Index(context.Background(), e.cfg, e.embedder(), e.st, func(f string, a ...any) {
+			logs = append(logs, fmt.Sprintf(f, a...))
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		warned := strings.Contains(strings.Join(logs, "\n"), "falling back to batch_size 1")
+		if warned != broken {
+			t.Errorf("broken=%v: warned=%v, logs %v", broken, warned, logs)
+		}
+		res, err := e.engine(t).Ask(context.Background(), "восстановление PostgreSQL pg_restore")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.Answered || res.Sources[0].Path != "backup.md" {
+			t.Errorf("broken=%v: index is unusable: %+v", broken, res)
+		}
+	}
+}
+
+func TestRelevantMaxGap(t *testing.T) {
+	hits := []store.Hit{{Score: 0.79}, {Score: 0.76}, {Score: 0.73}, {Score: 0.60}}
+	e := &Engine{cfg: config.Default()}
+	e.cfg.Search.MinScore = 0.65
+	cases := []struct {
+		gap  float64
+		want int
+	}{{0.05, 2}, {0.1, 3}, {0, 3}}
+	for _, c := range cases {
+		e.cfg.Search.MaxGap = c.gap
+		if got := len(e.relevant(hits)); got != c.want {
+			t.Errorf("max_gap %v: %d hits, want %d", c.gap, got, c.want)
+		}
+	}
+	e.cfg.Search.MinScore = 0.8
+	if got := len(e.relevant(hits)); got != 0 {
+		t.Errorf("below min_score: %d hits", got)
 	}
 }

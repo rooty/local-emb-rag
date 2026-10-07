@@ -47,6 +47,9 @@ type Search struct {
 	// MinScore is the cosine similarity of the best chunk below which
 	// the question is considered to have no answer in the knowledge base.
 	MinScore float64 `yaml:"min_score"`
+	// MaxGap drops chunks scoring more than MaxGap below the best one,
+	// so only close matches reach the answer and the source list. 0 disables it.
+	MaxGap float64 `yaml:"max_gap"`
 }
 
 const (
@@ -89,10 +92,12 @@ func Default() Config {
 			QueryPrefix: "task: search result | query: ",
 			DocPrefix:   "title: {title} | text: ",
 			Dims:        256,
-			BatchSize:   16,
-			TimeoutSec:  120,
+			// Ollama returned broken vectors for batched EmbeddingGemma requests;
+			// one text per request is the safe default.
+			BatchSize:  1,
+			TimeoutSec: 120,
 		},
-		Search: Search{TopK: 5, MinScore: 0.5},
+		Search: Search{TopK: 5, MinScore: 0.5, MaxGap: 0.05},
 		Answer: Answer{
 			Mode:         ModeLLM,
 			BaseURL:      "http://localhost:11434/v1",
@@ -137,6 +142,9 @@ func (c Config) Validate() error {
 	}
 	if c.Search.TopK < 1 {
 		errs = append(errs, "search.top_k must be >= 1")
+	}
+	if c.Search.MaxGap < 0 {
+		errs = append(errs, "search.max_gap must be >= 0")
 	}
 	switch c.Answer.Mode {
 	case ModeFragments:
