@@ -52,7 +52,9 @@ type Server struct {
 	// BrokenBatch makes /embeddings return wrong vectors for multi-input
 	// requests, like Ollama did with EmbeddingGemma.
 	BrokenBatch bool
-	LastChat    string
+	// LastChat and LastSystem are the user and system messages of the last chat request.
+	LastChat   string
+	LastSystem string
 }
 
 func NewServer(t *testing.T) *Server {
@@ -93,6 +95,7 @@ func NewServer(t *testing.T) *Server {
 		s.mu.Lock()
 		if n := len(req.Messages); n > 0 {
 			s.LastChat = req.Messages[n-1].Content
+			s.LastSystem = req.Messages[0].Content
 		}
 		reply := s.ChatReply
 		s.mu.Unlock()

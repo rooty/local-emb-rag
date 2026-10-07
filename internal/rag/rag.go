@@ -279,6 +279,7 @@ type Result struct {
 	TopScore float64  `json:"top_score"`
 	Sources  []Source `json:"sources"`
 	// Reason explains a fallback: "language", "below_threshold" or "llm_no_answer".
+	// "language" comes from the word-based check or from the chat model (NOT_POLISH).
 	Reason string `json:"reason,omitempty"`
 }
 
@@ -357,12 +358,19 @@ func (e *Engine) Ask(ctx context.Context, question string) (Result, error) {
 		res.Answer = formatFragments(relevant)
 		return res, nil
 	}
+	system := e.cfg.Answer.SystemPrompt
+	if e.cfg.Language.Expected == "pl" {
+		system = strings.TrimRight(system, "\n") + "\n" + config.PolishOnlyRule
+	}
 	answer, err := e.chat.Chat(ctx, []llm.Message{
-		{Role: "system", Content: e.cfg.Answer.SystemPrompt},
+		{Role: "system", Content: system},
 		{Role: "user", Content: buildPrompt(question, relevant)},
 	})
 	if err != nil {
 		return Result{}, err
+	}
+	if strings.Contains(answer, config.NotPolishMarker) {
+		return Result{Answer: e.cfg.Language.OtherMessage, Reason: "language"}, nil
 	}
 	if answer == "" || strings.Contains(answer, config.NoAnswerMarker) {
 		return e.fallback(res, "llm_no_answer"), nil

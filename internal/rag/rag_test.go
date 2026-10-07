@@ -172,6 +172,33 @@ func TestAskRejectsOtherLanguages(t *testing.T) {
 	}
 }
 
+func TestAskLLMSaysNotPolish(t *testing.T) {
+	e := setup(t)
+	e.index(t)
+	// No English function words: the word-based check lets it through to the LLM.
+	q := "Chrome crash popup blocked"
+	e.srv.ChatReply = config.NotPolishMarker
+	res, err := e.engine(t).Ask(context.Background(), q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(e.srv.LastSystem, config.PolishOnlyRule) {
+		t.Errorf("system prompt must carry the Polish-only rule:\n%s", e.srv.LastSystem)
+	}
+	if res.Answered || res.Answer != e.cfg.Language.OtherMessage || res.Reason != "language" || len(res.Sources) != 0 {
+		t.Fatalf("res = %+v", res)
+	}
+
+	e.cfg.Language.Expected = ""
+	e.srv.ChatReply = "ok"
+	if _, err := e.engine(t).Ask(context.Background(), "Chrome ciągle się zamyka"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(e.srv.LastSystem, config.NotPolishMarker) {
+		t.Error("the Polish-only rule must be off when language.expected is empty")
+	}
+}
+
 func TestAskFallsBackBelowThreshold(t *testing.T) {
 	e := setup(t)
 	e.index(t)

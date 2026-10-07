@@ -88,6 +88,16 @@ type Server struct {
 // NoAnswerMarker is what the chat model must reply when the context has no answer.
 const NoAnswerMarker = "NO_ANSWER"
 
+// NotPolishMarker is what the chat model must reply to a question that is not
+// in Polish when language.expected is "pl". It backs up the word-based check,
+// which lets through short questions without English function words.
+const NotPolishMarker = "NOT_POLISH"
+
+// PolishOnlyRule is appended to the system prompt when language.expected is "pl",
+// so it applies to custom prompts too.
+const PolishOnlyRule = `Questions must be written in Polish. If the question is written in any other
+language (for example English), do not answer it and reply with exactly one word: ` + NotPolishMarker
+
 const defaultSystemPrompt = `You are a helpdesk assistant. Answer ONLY from the knowledge base articles below.
 Do not use outside knowledge and do not invent steps, commands or settings that are not in the articles.
 Answer in the language of the question, briefly, keeping the steps, the verification and the escalation

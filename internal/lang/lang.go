@@ -32,6 +32,10 @@ var (
 		komputer komputera drukarka hasło konto przeglądarka`)
 	other = set(`the is are was my how what why where when can cannot does doesn not and with of in
 		for it this that you your have has from will won there please help
+		an at by or if be been isn aren don didn can't should would could need needed needs
+		keeps keep still only after before again without into out about which than then just
+		get gets got use using open opens start starts work works load loads
+		stuck shows show see send sends receive window website
 		der die das und ist nicht wie ich mein le la les est pas comment je mon el los es no como mi`)
 )
 

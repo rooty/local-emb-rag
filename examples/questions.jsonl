@@ -1,22 +1,41 @@
-{"q": "chrome mi się wiesza co chwilę", "relevant": ["chrome-crashes.md"]}
-{"q": "przeglądarka sama się zamyka podczas pracy", "relevant": ["chrome-crashes.md"]}
-{"q": "maile nie wychodzą z outlooka", "relevant": ["outlook-cannot-send.md"]}
-{"q": "wiadomość utknęła w skrzynce nadawczej", "relevant": ["outlook-cannot-send.md"]}
-{"q": "jest wifi a internetu nie ma", "relevant": ["wifi-no-internet.md"]}
-{"q": "strony się nie ładują chociaż sieć jest podłączona", "relevant": ["wifi-no-internet.md"]}
-{"q": "drukarka nie reaguje, dokumenty czekają w kolejce", "relevant": ["printer-offline.md"]}
-{"q": "jak wydrukować gdy drukarka jest offline", "relevant": ["printer-offline.md"]}
-{"q": "nie pamiętam hasła do logowania", "relevant": ["password-reset.md"]}
-{"q": "jak ustawić nowe hasło", "relevant": ["password-reset.md"]}
-{"q": "z domu nie łączy mi się vpn", "relevant": ["vpn-cannot-connect.md"]}
-{"q": "nie mam dostępu do sieci firmowej przez vpn", "relevant": ["vpn-cannot-connect.md"]}
-{"q": "na spotkaniu w teams nic nie słychać", "relevant": ["teams-no-sound.md"]}
-{"q": "koledzy mówią że mnie nie słychać", "relevant": ["teams-no-sound.md"]}
-{"q": "zabrakło miejsca na dysku", "relevant": ["disk-full-windows.md"]}
-{"q": "jak zwolnić miejsce na komputerze", "relevant": ["disk-full-windows.md"]}
-{"q": "ile dni urlopu mi przysługuje", "relevant": []}
-{"q": "jak rozliczyć delegację", "relevant": []}
-{"q": "gdzie zamówić przepustkę dla gościa", "relevant": []}
-{"q": "przepis na barszcz czerwony", "relevant": []}
-{"q": "kto odpowiada za zakup laptopów", "relevant": []}
-{"q": "jak skonfigurować drugi monitor", "relevant": []}
+{"q": "Chrome co chwilę mi się wyłącza, co robić?", "relevant": ["chrome-crashes.md"]}
+{"q": "Przeglądarka Google przestaje reagować i sama się zamyka", "relevant": ["chrome-crashes.md"]}
+{"q": "Strona banku otwiera się tylko w oknie prywatnym", "relevant": ["chrome-incognito-works.md"]}
+{"q": "Dlaczego w zwykłym oknie Chrome strona nie działa, a w incognito tak?", "relevant": ["chrome-incognito-works.md"]}
+{"q": "Mam otwartych mnóstwo kart i Chrome pokazuje Aw, Snap", "relevant": ["chrome-memory-tabs.md"]}
+{"q": "Chrome zgłasza brak pamięci", "relevant": ["chrome-memory-tabs.md"]}
+{"q": "Jedna strona nie chce się wczytać w Chrome", "relevant": ["chrome-page-not-loading.md"]}
+{"q": "Chrome nie ładuje strony internetowej, co sprawdzić?", "relevant": ["chrome-page-not-loading.md"]}
+{"q": "Chrome nie pozwala otworzyć okienka logowania na stronie firmowej", "relevant": ["chrome-popup-blocked.md"]}
+{"q": "Jak zezwolić na wyskakujące okna w Chrome dla jednej strony?", "relevant": ["chrome-popup-blocked.md"]}
+{"q": "Excel czeka na zakończenie innej operacji i nie reaguje", "relevant": ["excel-busy-process.md"]}
+{"q": "Excel zawiesza się zaraz po uruchomieniu", "relevant": ["excel-safe-mode.md"]}
+{"q": "Jak włączyć Excela bez dodatków?", "relevant": ["excel-safe-mode.md"]}
+{"q": "Pages zamyka się, gdy otwieram jeden dokument", "relevant": ["macos-app-one-file.md"]}
+{"q": "Na MacBooku program wyłącza się tylko przy jednym pliku", "relevant": ["macos-app-one-file.md"]}
+{"q": "Na Macu kręci się kolorowe kółko i program nie reaguje", "relevant": ["macos-app-unresponsive.md"]}
+{"q": "Jak wymusić zamknięcie programu na Macu?", "relevant": ["macos-app-unresponsive.md"]}
+{"q": "Gdzie znajdę narzędzie do diagnozowania sieci bezprzewodowej na MacBooku?", "relevant": ["macos-wifi-diagnostics.md"]}
+{"q": "MacBook ma Wi-Fi, ale nic się nie otwiera", "relevant": ["macos-wifi-no-internet.md"]}
+{"q": "Na Macu jest połączenie z siecią, ale brak internetu", "relevant": ["macos-wifi-no-internet.md"]}
+{"q": "Mail z dużym plikiem wisi w skrzynce nadawczej", "relevant": ["outlook-large-attachment.md"]}
+{"q": "Nie mogę wysłać maila z dużym załącznikiem", "relevant": ["outlook-large-attachment.md"]}
+{"q": "Nowy Outlook nie pokazuje nowych maili", "relevant": ["outlook-manual-sync.md"]}
+{"q": "Jak ręcznie zsynchronizować pocztę w nowym Outlooku?", "relevant": ["outlook-manual-sync.md"]}
+{"q": "Outlook przy starcie stoi na ekranie Przetwarzanie", "relevant": ["outlook-processing.md"]}
+{"q": "Outlook pisze, że pracuję offline", "relevant": ["outlook-work-offline.md"]}
+{"q": "Na pasku stanu Outlooka widzę tryb offline i maile nie wychodzą", "relevant": ["outlook-work-offline.md"]}
+{"q": "PowerPoint nie chce się otworzyć", "relevant": ["powerpoint-safe-mode.md"]}
+{"q": "Jak uruchomić PowerPointa w trybie awaryjnym?", "relevant": ["powerpoint-safe-mode.md"]}
+{"q": "Jak zmienić hasło do konta w domenie?", "relevant": []}
+{"q": "Drukarka nie drukuje, co zrobić?", "relevant": []}
+{"q": "Jak zainstalować Microsoft Teams?", "relevant": []}
+{"q": "Firefox zawiesza się przy starcie", "relevant": []}
+{"q": "Word nie uruchamia się, jak go otworzyć w trybie awaryjnym?", "relevant": []}
+{"q": "Wi-Fi nie działa na laptopie z Windows", "relevant": []}
+{"q": "Jak skonfigurować VPN?", "relevant": []}
+{"q": "Ile dni urlopu mi przysługuje?", "relevant": []}
+{"q": "Jak dodać podpis w Outlooku?", "relevant": []}
+{"q": "Telefon służbowy nie ładuje się", "relevant": []}
+{"q": "Jak zamówić nowy monitor?", "relevant": []}
+{"q": "W Teams nie ma dźwięku podczas spotkania", "relevant": []}
